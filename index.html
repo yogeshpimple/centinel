@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<title>Centinel</title>
+<link rel="manifest" href="./manifest.webmanifest"/>
+<meta name="theme-color" content="#1b2e80"/>
+<link rel="icon" href="./app_icon.png"/>
+<link rel="apple-touch-icon" href="./app_icon.png"/>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#1b2e80}
+  iframe{position:fixed;inset:0;width:100%;height:100%;border:0}
+</style>
+</head>
+<body>
+<!--
+  COOP CONNECT — BANNER-FREE WRAPPER (with back-button support)
+  1. Replace YOUR_EXEC_URL_HERE below with your deployed /exec URL.
+  2. Host this file free (rename to index.html if the host asks):
+       • Netlify Drop (drag & drop) or GitHub Pages: upload this file
+       • Google Sites: Insert → Embed → </> Embed code → paste the <iframe> line
+         (note: back-button support needs the FULL file, so prefer Netlify)
+  3. Share the wrapper page's link — no Google banner, and the phone's
+     back key closes popups inside the app instead of exiting.
+  Group links work through the wrapper:  your-page/?g=group-code
+-->
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbyS8dAlMfkLjtD4-OZDeSUdljJVCQ9gSoBGjFLV6_0f5ag7QbWiM8aggcuDDU25ng7iqQ/exec" allow="clipboard-write"></iframe>
+<script>
+  // Pass any ?g=groupcode from the wrapper URL through to the app.
+  (function(){
+    var f=document.getElementById('app');
+    var base=f.getAttribute('src');
+    try{
+      var g=new URLSearchParams(window.location.search).get('g');
+      if(g)f.src=base+(base.indexOf('?')>=0?'&':'?')+'g='+encodeURIComponent(g);
+    }catch(e){}
+  })();
+
+  // ---- Back-button bridge ----
+  // The app (running in a nested frame) reports when it opens/closes popups.
+  // This top page owns the real history, so the phone's back key closes the
+  // app's popups one by one instead of exiting.
+  (function(){
+    var APP=null, pending=0, suppress=0, KEY='coopSession';
+    function storedSession(){try{var v=localStorage.getItem(KEY);return v?JSON.parse(v):null;}catch(e){return null;}}
+    window.addEventListener('message',function(ev){
+      var d=ev.data||{};
+      if(d.coop==='ready'){APP=ev.source;try{APP.postMessage({coop:'wrapper-ready',session:storedSession()},'*');}catch(e){}}
+      else if(d.coop==='saveSession'){try{localStorage.setItem(KEY,JSON.stringify(d.v));}catch(e){}}
+      else if(d.coop==='clearSession'){try{localStorage.removeItem(KEY);}catch(e){}}
+      else if(d.coop==='navpush'){APP=APP||ev.source;pending++;try{history.pushState({c:pending},'');}catch(e){}}
+      else if(d.coop==='navpop'){APP=APP||ev.source;if(pending>0){pending--;suppress++;try{history.back();}catch(e){suppress--;}}}
+    });
+    window.addEventListener('popstate',function(){
+      if(suppress>0){suppress--;return;}
+      if(pending>0){pending--;if(APP)try{APP.postMessage({coop:'back'},'*');}catch(e){}}
+      // pending===0 → nothing open; next back exits (normal).
+    });
+  })();
+</script>
+<script>
+  if('serviceWorker' in navigator){try{navigator.serviceWorker.register('./sw.js');}catch(e){}}
+</script>
+</body>
+</html>
