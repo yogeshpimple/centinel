@@ -8,8 +8,8 @@
 <title>Centinel</title>
 <link rel="manifest" href="./manifest.webmanifest"/>
 <meta name="theme-color" content="#1b2e80"/>
-<link rel="icon" href="./app_icon.png"/>
-<link rel="apple-touch-icon" href="./app_icon.png"/>
+<link rel="icon" href="./icon-192.png"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
 <style>
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#1b2e80}
   iframe{position:fixed;inset:0;width:100%;height:100%;border:0}
@@ -27,7 +27,7 @@
      back key closes popups inside the app instead of exiting.
   Group links work through the wrapper:  your-page/?g=group-code
 -->
-<iframe id="app" src="https://script.google.com/macros/s/AKfycbyS8dAlMfkLjtD4-OZDeSUdljJVCQ9gSoBGjFLV6_0f5ag7QbWiM8aggcuDDU25ng7iqQ/exec" allow="clipboard-write"></iframe>
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbziy_yTda6IaED742xecgRtw8_wZdCSZsWW707iNn2CY1VFk0UcUyr4_BAJB4iwNDhu8w/exec" allow="clipboard-write"></iframe>
 <script>
   // Pass any ?g=groupcode from the wrapper URL through to the app.
   (function(){
@@ -39,25 +39,26 @@
     }catch(e){}
   })();
 
-  // ---- Back-button bridge ----
-  // The app (running in a nested frame) reports when it opens/closes popups.
-  // This top page owns the real history, so the phone's back key closes the
-  // app's popups one by one instead of exiting.
+  // ---- Back-button bridge (arm/disarm model) ----
+  // The app tells this page whether ANYTHING is open above its home screen
+  // ("Step 0"). While armed, one history entry sits under the back key:
+  // pressing back asks the app to close one step; the app re-arms if more
+  // steps remain. ✕-closing everything disarms cleanly — no race, no exit.
   (function(){
-    var APP=null, pending=0, suppress=0, KEY='coopSession';
+    var APP=null, armed=false, suppress=0, KEY='coopSession';
     function storedSession(){try{var v=localStorage.getItem(KEY);return v?JSON.parse(v):null;}catch(e){return null;}}
     window.addEventListener('message',function(ev){
       var d=ev.data||{};
       if(d.coop==='ready'){APP=ev.source;try{APP.postMessage({coop:'wrapper-ready',session:storedSession()},'*');}catch(e){}}
       else if(d.coop==='saveSession'){try{localStorage.setItem(KEY,JSON.stringify(d.v));}catch(e){}}
       else if(d.coop==='clearSession'){try{localStorage.removeItem(KEY);}catch(e){}}
-      else if(d.coop==='navpush'){APP=APP||ev.source;pending++;try{history.pushState({c:pending},'');}catch(e){}}
-      else if(d.coop==='navpop'){APP=APP||ev.source;if(pending>0){pending--;suppress++;try{history.back();}catch(e){suppress--;}}}
+      else if(d.coop==='arm'){APP=APP||ev.source;if(!armed){armed=true;try{history.pushState({c:1},'');}catch(e){}}}
+      else if(d.coop==='disarm'){APP=APP||ev.source;if(armed){armed=false;suppress++;try{history.back();}catch(e){suppress--;}}}
     });
     window.addEventListener('popstate',function(){
       if(suppress>0){suppress--;return;}
-      if(pending>0){pending--;if(APP)try{APP.postMessage({coop:'back'},'*');}catch(e){}}
-      // pending===0 → nothing open; next back exits (normal).
+      if(armed){armed=false;if(APP)try{APP.postMessage({coop:'back'},'*');}catch(e){}}
+      // not armed → nothing open; the next back exits (normal).
     });
   })();
 </script>
